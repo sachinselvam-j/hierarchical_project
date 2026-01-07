@@ -1,56 +1,46 @@
 import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.cluster import AgglomerativeClustering
-from scipy.cluster.hierarchy import dendrogram, linkage
+import numpy as np
+import pickle
+import os
 
-st.set_page_config(page_title="Hierarchical Clustering", layout="centered")
+st.set_page_config(page_title="Hierarchical Clustering App")
 
-st.title("Hierarchical Clustering – Streamlit App")
+st.title("🏦 Credit Card Customer Segmentation")
+st.write("Hierarchical Clustering (Agglomerative)")
 
-# Load dataset
-df = pd.read_csv("Mall_Customers (2).csv")
+# ================= LOAD MODEL =================
+if not os.path.exists("hierarchical_predictor.pkl") or not os.path.exists("scaler.pkl"):
+    st.error("❌ Model or scaler file not found")
+    st.stop()
 
-st.subheader("Dataset Preview")
-st.dataframe(df.head())
+with open("hierarchical_predictor.pkl", "rb") as f:
+    model = pickle.load(f)
 
-# Select features
-X = df[['Annual Income (k$)', 'Spending Score (1-100)']]
+with open("scaler.pkl", "rb") as f:
+    scaler = pickle.load(f)
 
-# ---------------- DENDROGRAM ----------------
-st.subheader("Dendrogram")
-fig1, ax1 = plt.subplots(figsize=(8,4))
-dendrogram(linkage(X, method='ward'), ax=ax1)
-ax1.set_xlabel("Customers")
-ax1.set_ylabel("Distance")
-st.pyplot(fig1)
+st.success("✅ Model loaded successfully")
 
-# ---------------- CLUSTER SELECTION ----------------
-st.subheader("Create Model")
-k = st.slider("Select Number of Clusters", 2, 10, 5)
+st.divider()
 
-model = AgglomerativeClustering(
-    n_clusters=k,
-    linkage='ward'
-)
+# ================= INPUTS =================
+n_features = scaler.n_features_in_
 
-df['Cluster'] = model.fit_predict(X)
+st.subheader("Enter Customer Details")
 
-# ---------------- VISUALIZATION ----------------
-st.subheader("Cluster Visualization")
-fig2, ax2 = plt.subplots(figsize=(6,4))
-ax2.scatter(
-    X.iloc[:,0],
-    X.iloc[:,1],
-    c=df['Cluster']
-)
-ax2.set_xlabel("Annual Income (k$)")
-ax2.set_ylabel("Spending Score (1-100)")
-ax2.set_title("Hierarchical Clustering Result")
-st.pyplot(fig2)
+inputs = []
+for i in range(n_features):
+    val = st.number_input(f"Feature {i+1}", value=0.0)
+    inputs.append(val)
 
-# ---------------- OUTPUT ----------------
-st.subheader("Clustered Data")
-st.dataframe(df.head())
+# ================= PREDICTION =================
+if st.button("🔍 Predict Cluster"):
+    try:
+        data = np.array(inputs).reshape(1, -1)
+        data_scaled = scaler.transform(data)
+        cluster = model.predict(data_scaled)
 
-st.success("Model created successfully (Hierarchical Clustering)")
+        st.success(f"✅ Customer belongs to Cluster: {cluster[0]}")
+    except Exception as e:
+        st.error("❌ Prediction failed")
+        st.exception(e)
